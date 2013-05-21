@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" ng-app>
+<head>
+    <title></title>
+    <link href="Content/bootstrap.css" rel="stylesheet" />
+    <script src="Scripts/angular.js"></script>
+    <script src="Scripts/jquery-2.0.0.js"></script>
+    <script src="Scripts/jquery.signalR-1.1.0.js"></script>
+    <script src="signalr/hubs"></script>
+    <script type="text/javascript">
+        function Controller($scope) {
+            console.log("Controller");
+            var hubProxy = $.connection.friendHub;
+
+            // AngularJS Events
+            $scope.add = function () {
+                hubProxy.server.add({ Name: $scope.add_friend.Name });
+                $scope.add_friend.Name = "";
+            }
+
+            $scope.delete = function (friend) {
+                hubProxy.server.delete(friend);
+            }
+
+            $scope.edit = function (friend) {
+                $scope.edit_friend = friend;
+                hubProxy.server.takeLock($scope.edit_friend);
+            }
+
+            $scope.update = function (friend) {
+                $scope.edit_friend = undefined;
+                hubProxy.server.update(friend);
+            }
+
+            // SignalR Events
+            hubProxy.client.add = function (friend) {
+                console.log("client.add(" + JSON.stringify(friend) + ")");
+                $scope.friends.push(friend);
+                $scope.$apply();
+            }
+
+            hubProxy.client.all = function (friends) {
+                console.log("client.all(" + JSON.stringify(friends) + ")");
+                $scope.friends = friends;
+
+                // do not update UI yet, we want to get the locks first!
+                //$scope.$apply();
+            }
+
+            hubProxy.client.delete = function (friend) {
+                console.log("client.delete(" + JSON.stringify(friend) + ")");
+                removeById(friend.Id, $scope.friends);
+                $scope.$apply();
+            }
+
+            hubProxy.client.update = function (friend) {
+                console.log("client.update(" + JSON.stringify(friend) + ")");
+                updateById(friend.Id, $scope.friends, friend);
+                $scope.$apply();
+            }
+
+            hubProxy.client.allLocks = function (locks) {
+                console.log("client.allLocks(" + JSON.stringify(locks) + ")");
+                for (i = 0; i < $scope.friends.length; i++) {
+                    $scope.friends[i].IsLocked = false;
+                }
+
+                for (i = 0; i < locks.length; i++) {
+                    for (j = 0; j < $scope.friends.length; j++) {
+                        if (locks[i] === $scope.friends[j].Id) {
+                            $scope.friends[j].IsLocked = true;
+                            break;
+                        }
+                    }
+                }
+                $scope.$apply();
+            }
+
+            $.connection.hub.logging = true;
+
+            $.connection.hub.start()
+                .done(function () {                    
+                    console.log("hub.start.done");
+                })
+                .fail(function (error) {
+                    console.log(error);
+                });
+        }
+
+        function removeById(id, array) {
+            for (index = 0; index < array.length; index++) {
+                if (id === array[index].Id) {
+                    array.splice(index, 1);
+                }
+            }
+        }
+
+        function updateById(id, array, item) {
+            for (index = 0; index < array.length; index++) {
+                if (id === array[index].Id) {
+                    array[index] = item;
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div ng-controller="Controller">
+        <table>
+            <tr>
+                <th></th>
+                <th></th>
+                <th><a href="" ng-click="predicate = 'Id'">Id</a></th>
+                <th><a href="" ng-click="predicate = 'Name'">Name</a></th>
+            </tr>
+            <tr ng-repeat="friend in friends | orderBy:predicate">
+                <td><button name="deleteButton" ng-click="delete(friend)" ng-show="!friend.IsLocked">Delete</button></td>
+                <td>
+                    <button name="editButton" ng-click="edit(friend)" ng-show="!friend.IsLocked">Edit</button>
+                    <button name="updateButton" ng-click="update(friend)" ng-show="friend.Id == edit_friend.Id">Update</button>
+                </td>
+                <td>{{friend.Id}}</td>
+                <td ng-show="friend.Id != edit_friend.Id">{{friend.Name}}</td>
+                <td ng-show="friend.Id == edit_friend.Id"><input type="text" ng-model="edit_friend.Name" /></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>
+                    <button name="addButton" ng-click="add()">Add</button></td>
+                <td></td>
+                <td>
+                    <input type="text" ng-model="add_friend.Name" /></td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
