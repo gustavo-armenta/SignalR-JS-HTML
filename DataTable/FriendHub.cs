@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNet.SignalR;
@@ -10,6 +9,7 @@ namespace DataTable
     {
         private static DataContext _db = new DataContext();
         private static ConcurrentDictionary<string, int> _locks = new ConcurrentDictionary<string, int>();
+        private static object _lock = new object();
 
         public override async Task OnConnected()
         {
@@ -30,14 +30,29 @@ namespace DataTable
         public override async Task OnDisconnected()
         {
             int removed;
-            _locks.TryRemove(Context.ConnectionId, out removed);
-            await Clients.All.allLocks(_locks.Values);
+            if(_locks.TryRemove(Context.ConnectionId, out removed))
+            {
+                await Clients.All.allLocks(_locks.Values);
+            }
         }
 
         public void TakeLock(Friend value)
         {
-            _locks.AddOrUpdate(Context.ConnectionId, value.Id, (key, oldValue) => value.Id);
-            Clients.All.allLocks(_locks.Values);
+            // Race condition: N clients attempting to edit same row
+            lock (_lock)
+            {
+                foreach (int id in _locks.Values)
+                {
+                    if (value.Id == id)
+                    {
+                        return;
+                    }
+                }
+
+                _locks.AddOrUpdate(Context.ConnectionId, value.Id, (key, oldValue) => value.Id);
+                Clients.Caller.takeLockSuccess(value);
+                Clients.All.allLocks(_locks.Values);
+            }                        
         }
         
         public void Add(Friend value)
