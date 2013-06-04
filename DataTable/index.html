@@ -27,10 +27,10 @@
             }
 
             $scope.update = function (friend) {
+                hubProxy.server.update($scope.edit_friend);
                 $scope.edit_friend = undefined;
-                hubProxy.server.update(friend);
             }
-
+ 
             $scope.isEdit = function (friend) {
                 if ($scope.edit_friend === undefined) {
                     return false;
