@@ -26,9 +26,9 @@
                 hubProxy.server.takeLock(friend);
             }
 
-            $scope.update = function (friend) {
-                $scope.edit_friend = undefined;
-                hubProxy.server.update(friend);
+            $scope.update = function () {
+                hubProxy.server.update($scope.edit_friend);
+                $scope.edit_friend = undefined;                
             }
 
             $scope.isEdit = function (friend) {
@@ -131,7 +131,7 @@
                 <td><button name="deleteButton" ng-click="delete(friend)" ng-show="!friend.IsLocked">Delete</button></td>
                 <td>
                     <button name="editButton" ng-click="edit(friend)" ng-show="!friend.IsLocked">Edit</button>
-                    <button name="updateButton" ng-click="update(friend)" ng-show="isEdit(friend)">Update</button>
+                    <button name="updateButton" ng-click="update()" ng-show="isEdit(friend)">Update</button>
                 </td>
                 <td>{{friend.Id}}</td>
                 <td ng-show="!isEdit(friend)">{{friend.Name}}</td>
